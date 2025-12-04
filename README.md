@@ -152,6 +152,22 @@ Note: `agent-framework` is currently listed in `requirements.txt` but the demo u
 - `MODEL_DEPLOYMENT_NAME`: Name of your deployed model.
 - `DEBUG_AGENT_LOGS` (optional): Set to `true` to print detailed assistant and thread logs to the terminal while Streamlit is running.
 
+#### Debug logging
+
+To see detailed logs from the assistant and thread operations while the app is running, set the environment variable before starting Streamlit:
+
+```bash
+export DEBUG_AGENT_LOGS=true
+streamlit run app.py
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:DEBUG_AGENT_LOGS = "true"
+streamlit run app.py
+```
+
 ### Authentication
 
 The application uses `DefaultAzureCredential` from Azure Identity SDK, which automatically handles authentication through:
