@@ -1,23 +1,22 @@
 # Azure AI Foundry Code Interpreter Demo
 
-A Streamlit web application demonstrating the **Code Interpreter** tool capabilities of Azure AI Foundry agents. This demo allows you to interact with an AI agent that can generate charts, create CSV files, and perform data analysis using Python code execution.
+A Streamlit web application that demonstrates the **Code Interpreter** capabilities of Azure OpenAI models.  
+The app uses the OpenAI Python SDK (Azure OpenAI integration) and the Assistants API to execute Python code, generate charts, and create downloadable files such as CSVs.
 
-## 🎯 Features
+## Features
 
-- 💬 **Interactive Chat Interface** - Natural conversation with the AI agent
-- 📊 **Chart Generation** - Create bar charts, line plots, pie charts, and scatter plots
-- 📁 **File Creation** - Generate CSV files and other data formats
-- 🖼️ **Inline Display** - View generated charts directly in the UI
-- 📥 **File Downloads** - Download all generated files
-- 🔄 **Multi-turn Conversations** - Maintain context across multiple messages
+- **Interactive chat interface** – Natural conversation with an assistant backed by an Azure OpenAI deployment.
+- **Chart generation** – Create bar charts, line plots, pie charts, scatter plots, and other visualizations.
+- **File creation and downloads** – Generate CSV and other data files and download them from the UI.
+- **Inline display** – Render generated images directly in the Streamlit app.
+- **Multi-turn conversations** – Maintain conversation context across multiple messages.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-1. **Azure AI Foundry Project** with:
-   - A deployed model (e.g., GPT-4o)
-   - Code Interpreter tool enabled
+1. **Azure OpenAI model deployment**, typically created via Azure AI Foundry:
+   - A deployed model (for example, `gpt-4o`) that supports the Code Interpreter tool.
 
 2. **Azure CLI** installed and authenticated:
    ```bash
@@ -51,21 +50,25 @@ A Streamlit web application demonstrating the **Code Interpreter** tool capabili
    cp .env.example .env
    ```
 
-   Edit `.env` and add your Azure credentials:
+   Edit `.env` and add your Azure settings:
    ```bash
-   PROJECT_ENDPOINT=https://your-resource.services.ai.azure.com/api/projects/your-project-id
-   MODEL_DEPLOYMENT_NAME=gpt-4o
+   PROJECT_ENDPOINT=https://your-resource.openai.azure.com
+   MODEL_DEPLOYMENT_NAME=<your-deployment-name>
    ```
 
-### Finding Your Azure Credentials
+   `PROJECT_ENDPOINT` can be either:
+   - The Azure OpenAI endpoint (recommended), or
+   - A model/deployment URL copied from Azure AI Foundry. Only the scheme and host are used.
 
-#### Project Endpoint
+### Finding Your Azure Settings
+
+#### Azure OpenAI Endpoint
 
 1. Go to [Azure AI Foundry Portal](https://ai.azure.com/)
 2. Select your project
-3. Go to **Overview** or **Settings**
-4. Copy the **Project connection string** or **Endpoint URL**
-5. Format should be: `https://<resource-name>.services.ai.azure.com/api/projects/<project-id>`
+3. Go to **Models + endpoints** (or your Azure OpenAI resource in the Azure portal)
+4. Copy the **Endpoint** for your Azure OpenAI resource  
+   Format: `https://<resource-name>.openai.azure.com`
 
 #### Model Deployment Name
 
@@ -83,7 +86,7 @@ streamlit run app.py
 
 The application will open in your default browser at `http://localhost:8501`
 
-## 💡 Usage Examples
+## Usage Examples
 
 Try these sample prompts (also available as buttons in the sidebar):
 
@@ -110,7 +113,7 @@ Create a CSV file with 10 rows of sample customer data (name, email, purchase_am
 Generate 100 random data points and create a histogram showing their distribution
 ```
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 code-interpreter-demo/
@@ -127,12 +130,27 @@ code-interpreter-demo/
 └── downloads/                 # Generated files (created at runtime)
 ```
 
-## 🔧 Configuration
+## Architecture and SDKs
+
+This demo uses the following approach:
+
+- **UI / Web framework**: `streamlit` for the chat-style web interface.
+- **Model access**: `openai` Python SDK, using the `AzureOpenAI` client to call Azure OpenAI.
+  - Uses the Assistants API with the `code_interpreter` tool enabled.
+  - The assistant is created programmatically in `utils/azure_agent.py`.
+- **Authentication**: `azure-identity` with `DefaultAzureCredential`, wrapped by `get_bearer_token_provider` to obtain tokens for Azure OpenAI.
+- **Configuration**: `python-dotenv` to load `.env`.
+- **Images and file handling**: `Pillow` and local utilities in `utils/file_handler.py` for saving and serving generated files.
+
+Note: `agent-framework` is currently listed in `requirements.txt` but the demo uses the OpenAI SDK directly rather than the Agent Framework abstractions.
+
+## Configuration
 
 ### Environment Variables
 
-- **PROJECT_ENDPOINT**: Your Azure AI Foundry project endpoint URL
-- **MODEL_DEPLOYMENT_NAME**: Name of your deployed model
+- `PROJECT_ENDPOINT`: Azure OpenAI endpoint (or model URL; only host is used).
+- `MODEL_DEPLOYMENT_NAME`: Name of your deployed model.
+- `DEBUG_AGENT_LOGS` (optional): Set to `true` to print detailed assistant and thread logs to the terminal while Streamlit is running.
 
 ### Authentication
 
@@ -148,7 +166,7 @@ For local development, ensure you're logged in via Azure CLI:
 az login
 ```
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### "Failed to initialize agent"
 
@@ -177,43 +195,38 @@ az login
 - Check that the `downloads/` directory has write permissions
 - Ensure sufficient disk space
 - Check browser download settings
+- Enable `DEBUG_AGENT_LOGS=true` and inspect the terminal for any `Download error` messages
 
-## 📦 Dependencies
+## Dependencies
 
 Core dependencies (see `requirements.txt`):
-- `agent-framework` - Azure AI agent framework (pre-release)
-- `streamlit` - Web application framework
-- `python-dotenv` - Environment variable management
-- `Pillow` - Image processing
+- `streamlit` – web application framework
+- `python-dotenv` – environment variable management
+- `Pillow` – image processing
+- `agent-framework` – currently used as a dependency source; the app itself calls the OpenAI SDK directly.
 
-The `agent-framework` includes:
-- `azure-ai-projects` - Azure AI project client
-- `azure-ai-agents` - Agent management SDK
-- `azure-identity` - Azure authentication
-- `azure-core` - Core Azure SDK functionality
+You will also need (directly or transitively):
+- `openai` – Python client library providing `AzureOpenAI`
+- `azure-identity` – authentication via `DefaultAzureCredential`
 
-## 🤝 Contributing
+## Contributing
 
 This is a demo application. Feel free to fork and customize for your needs!
 
-## 📝 Notes
+## Notes
 
 - Generated files are stored in the `downloads/` directory
 - Old files are automatically cleaned up after 50 files
 - Each chat session maintains conversation context
 - Threads persist until you click "Clear Chat"
 
-## 🔗 Resources
+## Resources
 
 - [Azure AI Foundry Documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/)
 - [Azure AI Agents Documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/)
 - [Code Interpreter Tool Guide](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/tools/code-interpreter)
 - [Streamlit Documentation](https://docs.streamlit.io/)
 
-## 📄 License
+## License
 
 This project is for demonstration purposes. Modify and use as needed.
-
----
-
-**Happy coding!** 🚀

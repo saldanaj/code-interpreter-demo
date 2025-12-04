@@ -28,6 +28,9 @@ def _normalize_azure_endpoint(endpoint: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
+DEBUG_AGENT_LOGS = os.environ.get("DEBUG_AGENT_LOGS", "").lower() in ("1", "true", "yes", "on")
+
+
 class AzureAgentManager:
     """Simple agent manager using OpenAI SDK"""
 
@@ -41,6 +44,9 @@ class AzureAgentManager:
     def initialize(self) -> bool:
         """Initialize OpenAI client and create assistant"""
         try:
+            if DEBUG_AGENT_LOGS:
+                print(f"[DEBUG] Initializing AzureAgentManager with endpoint={self.endpoint}, model={self.model_name}")
+
             # Get token provider
             token_provider = get_bearer_token_provider(
                 DefaultAzureCredential(),
@@ -63,8 +69,10 @@ class AzureAgentManager:
                 instructions="You are a data visualization assistant. Create clear charts using Python and matplotlib.",
                 tools=[{"type": "code_interpreter"}]
             )
-
-            print(f"✓ Assistant created: {self.assistant.id}")
+            if DEBUG_AGENT_LOGS:
+                print(f"[DEBUG] Assistant created: {self.assistant.id}")
+            else:
+                print(f"✓ Assistant created: {self.assistant.id}")
             return True
 
         except Exception as e:
@@ -76,6 +84,8 @@ class AzureAgentManager:
         try:
             thread = self.client.beta.threads.create()
             self.thread_id = thread.id
+            if DEBUG_AGENT_LOGS:
+                print(f"[DEBUG] Created thread: {self.thread_id}")
             return self.thread_id
         except Exception as e:
             print(f"Thread error: {e}")
@@ -87,6 +97,9 @@ class AzureAgentManager:
             tid = thread_id or self.thread_id
             if not tid:
                 tid = self.create_thread()
+
+            if DEBUG_AGENT_LOGS:
+                print(f"[DEBUG] Sending message to assistant {self.assistant.id} on thread {tid}: {user_message}")
 
             # Create message
             self.client.beta.threads.messages.create(
@@ -101,6 +114,9 @@ class AzureAgentManager:
                 assistant_id=self.assistant.id
             )
 
+            if DEBUG_AGENT_LOGS:
+                print(f"[DEBUG] Run status: {run.status}")
+
             if run.status == 'completed':
                 messages = self.client.beta.threads.messages.list(thread_id=tid)
 
@@ -110,9 +126,28 @@ class AzureAgentManager:
                         files = []
 
                         for content in msg.content:
-                            # Text content
+                            # Text content (and embedded annotations)
                             if hasattr(content, "text") and content.text:
                                 text.append(content.text.value)
+
+                                # Look for file-related annotations (file_path, file_citation)
+                                annotations = getattr(content.text, "annotations", []) or []
+                                for ann in annotations:
+                                    ann_type = getattr(ann, "type", None)
+                                    if ann_type == "file_path":
+                                        file_obj = getattr(ann, "file_path", None)
+                                    elif ann_type == "file_citation":
+                                        file_obj = getattr(ann, "file_citation", None)
+                                    else:
+                                        file_obj = None
+
+                                    file_id = getattr(file_obj, "file_id", None) if file_obj else None
+                                    if file_id:
+                                        files.append({
+                                            "type": "file",
+                                            "file_id": file_id,
+                                            "text": getattr(ann, "text", "") or "",
+                                        })
 
                             # Image output from code interpreter
                             if hasattr(content, "image_file") and content.image_file:
@@ -121,14 +156,15 @@ class AzureAgentManager:
                                     "file_id": content.image_file.file_id,
                                     "extension": ".png",
                                 })
-
-                            # File outputs referenced in the message (e.g., CSVs)
-                            if hasattr(content, "file_path") and content.file_path:
-                                files.append({
-                                    "type": "file",
-                                    "file_id": content.file_path.file_id,
-                                    "text": getattr(content, "text", None) or "",
-                                })
+                        if DEBUG_AGENT_LOGS:
+                            try:
+                                print("[DEBUG] Raw assistant message:")
+                                # Many OpenAI types support model_dump_json; fall back to repr
+                                print(msg.model_dump_json(indent=2))  # type: ignore[attr-defined]
+                            except Exception:
+                                print(msg)
+                            print(f"[DEBUG] Parsed text: {' '.join(text)}")
+                            print(f"[DEBUG] Parsed files: {files}")
 
                         return {
                             "status": "success",
