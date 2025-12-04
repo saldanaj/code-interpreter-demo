@@ -1,0 +1,16 @@
+/.venv/
+*venv*/
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+
+# Environment variables
+.env
+
+# Generated files
+downloads/
+*.png
+*.jpg
+*.csv
+*.pdf
